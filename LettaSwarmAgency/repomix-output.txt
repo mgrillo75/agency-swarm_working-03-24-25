@@ -1,0 +1,270 @@
+This file is a merged representation of the entire codebase, combining all repository files into a single document.
+
+================================================================
+File Summary
+================================================================
+
+Purpose:
+--------
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+
+File Format:
+------------
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Repository structure
+4. Multiple file entries, each consisting of:
+  a. A separator line (================)
+  b. The file path (File: path/to/file)
+  c. Another separator line
+  d. The full contents of the file
+  e. A blank line
+
+
+================================================================
+Repository Structure
+================================================================
+__init__.py
+agency_manifesto.md
+agency.py
+LeadAgent/__init__.py
+LeadAgent/instructions.md
+LeadAgent/LeadAgent.py
+SupportAgent/__init__.py
+SupportAgent/instructions.md
+SupportAgent/SupportAgent.py
+SupportAgent/tools/LettaClientAgentInitializer.py
+SupportAgent/tools/LettaMessageHandler.py
+
+================================================================
+Repository Files
+================================================================
+
+================
+File: __init__.py
+================
+from .LeadAgent import LeadAgent
+from .SupportAgent import SupportAgent
+
+================
+File: agency_manifesto.md
+================
+The LettaSwarmAgency is designed to facilitate effective communication between two separate agencies built with different frameworks: Agency Swarm and Letta. The primary mission is to ensure seamless interaction and data exchange between these frameworks. The Lead Agent, built using the Agency Swarm framework, will act as the primary communicator with the user and the Support Agent. The Support Agent, also built using the Agency Swarm framework, will handle communication with the Letta Framework Agent and will have specialized tools for Letta agent initialization and message handling. The Letta Framework Agent will interact with the Support Agent when prompted, ensuring efficient collaboration and information sharing across frameworks.
+
+================
+File: agency.py
+================
+from agency_swarm import Agency
+from SupportAgent import SupportAgent
+from LeadAgent import LeadAgent
+
+# Initialize shared state
+shared_state = {
+    "LettaAgentID": None,
+    "MessageHistory": [],
+}
+
+# Create agents
+lead_agent = LeadAgent(shared_state=shared_state)
+support_agent = SupportAgent(shared_state=shared_state)
+
+# Define the agency with a non-redundant structure
+agency = Agency(
+    agents=[lead_agent, support_agent],
+    shared_instructions='./agency_manifesto.md',
+    max_prompt_tokens=25000,
+    temperature=0.3,
+    shared_state=shared_state,
+)
+
+if __name__ == '__main__':
+    agency.demo_gradio()
+
+================
+File: LeadAgent/__init__.py
+================
+from .LeadAgent import LeadAgent
+
+================
+File: LeadAgent/instructions.md
+================
+# Lead Agent Instructions
+
+You are the Lead Agent for the LettaSwarmAgency. Your primary role is to communicate with the user and the Support Agent to facilitate seamless interaction between the Agency Swarm and Letta frameworks.
+
+### Primary Instructions:
+1. Serve as the main point of contact for the user within the LettaSwarmAgency.
+2. Initiate and manage communication with the Support Agent to coordinate tasks and information exchange.
+3. Ensure that all communications are clear and that data is accurately relayed between the user and the Support Agent.
+4. Collaborate with the Support Agent to achieve the common goal of the agency, ensuring effective interaction and data exchange between the Agency Swarm and Letta frameworks.
+
+================
+File: LeadAgent/LeadAgent.py
+================
+from agency_swarm.agents import Agent
+
+
+class LeadAgent(Agent):
+    def __init__(self, shared_state):
+        super().__init__(
+            name="LeadAgent",
+            description="The Lead Agent is the primary communicator with the user and the Support Agent within the LettaSwarmAgency. It initiates communication with the Support Agent and ensures effective data exchange.",
+            instructions="./instructions.md",
+            files_folder="./files",
+            schemas_folder="./schemas",
+            tools=[],  # No tools for LeadAgent; it delegates tasks to SupportAgent
+            tools_folder="./tools",
+            temperature=0.3,
+            max_prompt_tokens=25000,
+        )
+
+    def response_validator(self, message):
+        return message
+
+================
+File: SupportAgent/__init__.py
+================
+from .SupportAgent import SupportAgent
+
+================
+File: SupportAgent/instructions.md
+================
+# Support Agent Instructions
+
+You are the Support Agent for the LettaSwarmAgency. Your primary role is to facilitate communication between the Lead Agent and the Letta Framework Agent.
+
+### Primary Instructions:
+1. Communicate with the Lead Agent to receive tasks and relay information.
+2. Use the Letta agent initialization tool to set up communication with the Letta Framework Agent.
+3. Use the Letta agent communication/message handling tool to send and receive messages from the Letta Framework Agent.
+4. Ensure that all communications are clear and that data is accurately relayed between the Lead Agent and the Letta Framework Agent.
+5. Collaborate with the Lead Agent to achieve the common goal of the agency, ensuring effective interaction and data exchange between the Agency Swarm and Letta frameworks.
+
+================
+File: SupportAgent/SupportAgent.py
+================
+from agency_swarm.agents import Agent
+from SupportAgent.tools.LettaClientAgentInitializer import LettaClientAgentInitializer
+from SupportAgent.tools.LettaMessageHandler import LettaMessageHandler
+
+
+class SupportAgent(Agent):
+    def __init__(self, shared_state):
+        super().__init__(
+            name="SupportAgent",
+            description="The Support Agent within the LettaSwarmAgency communicates with the Lead Agent and the Letta Framework Agent. It is equipped with tools for Letta agent initialization and message handling.",
+            instructions="./instructions.md",
+            files_folder="./files",
+            schemas_folder="./schemas",
+            tools=[
+                LettaClientAgentInitializer(shared_state=shared_state),
+                LettaMessageHandler(shared_state=shared_state),
+            ],
+            tools_folder="./tools",
+            temperature=0.3,
+            max_prompt_tokens=25000,
+        )
+
+    def response_validator(self, message):
+        return message
+
+================
+File: SupportAgent/tools/LettaClientAgentInitializer.py
+================
+from agency_swarm.tools import BaseTool
+from pydantic import Field
+from letta import create_client, LLMConfig, EmbeddingConfig
+from letta.schemas.memory import ChatMemory
+
+class LettaClientAgentInitializer(BaseTool):
+    """
+    A tool to initialize a Letta client and set up an agent with default configurations.
+    This tool initializes a Letta client, sets default configurations for LLM and embedding,
+    and ensures an agent is created or retrieved with the specified name and memory.
+    """
+    agent_name: str = Field(
+        ..., description="The name of the agent to be created or retrieved within the Letta framework."
+    )
+    
+    persona: str = Field(
+        ..., description="The persona for the agent's memory, describing its role and capabilities."
+    )
+    
+    human_name: str = Field(
+        ..., description="The human identifier interacting with the agent."
+    )
+
+    def run(self):
+        """
+        Initialize the Letta client and agent with the given configurations.
+        """
+        # Initialize Letta client
+        client = create_client()
+
+        # Configure default LLM and embedding settings
+        client.set_default_llm_config(LLMConfig.default_config("gpt-4o-mini"))
+        client.set_default_embedding_config(EmbeddingConfig.default_config(model_name="text-embedding-ada-002"))
+
+        # Check if the agent already exists
+        agent_id = client.get_agent_id(self.agent_name)
+        if agent_id:
+            client._shared_state.set("LettaAgentID", agent_id)
+            return f"Letta agent '{self.agent_name}' already exists with ID: {agent_id}"
+        else:
+            # Initialize agent with chat memory
+            agent_state = client.create_agent(
+                name=self.agent_name,
+                memory=ChatMemory(
+                    persona=self.persona,
+                    human=self.human_name
+                )
+            )
+            client._shared_state.set("LettaAgentID", agent_state.id)
+            return f"Letta agent '{self.agent_name}' created successfully with ID: {agent_state.id}"
+
+if __name__ == "__main__":
+    # Example usage
+    tool = LettaClientAgentInitializer(
+        agent_name="LettaMemoryAgent",
+        persona="""My name is LettaMemoryAgent. I am a specialized memory manager in Letta's framework, optimizing memory operations and facilitating smooth 
+                    interaction with users. I ensure efficient memory utilization and effective collaboration with users to store important information.""",
+        human_name="Name: LeadAgent"
+    )
+    print(tool.run())
+
+================
+File: SupportAgent/tools/LettaMessageHandler.py
+================
+from agency_swarm.tools import BaseTool
+from pydantic import Field
+from letta import create_client
+
+class LettaMessageHandler(BaseTool):
+    message: str = Field(..., description="The message to be sent to the Letta agent.")
+
+    def run(self):
+        letta_agent_id = self._shared_state.get("LettaAgentID")
+        if not letta_agent_id:
+            return "Error: Letta agent not initialized. Please run LettaClientAgentInitializer first."
+
+        client = create_client()
+        try:
+            response = client.send_message(
+                agent_id=letta_agent_id,
+                message=self.message,
+                role="user"
+            )
+            if response.messages:
+                self._shared_state["MessageHistory"].append(
+                    {
+                        "user": self.message,
+                        "agent": response.messages[0].text
+                    }
+                )
+                return f"Response from Letta agent: {response.messages[0].text}"
+            return "No response received from the Letta agent."
+        except Exception as e:
+            return f"Communication error: {str(e)}"
